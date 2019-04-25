@@ -1,0 +1,329 @@
+<!------------------------------------------------------------------------------------------------->
+<!-* ここにスクリプトを記述                                                                      -->
+<!------------------------------------------------------------------------------------------------->
+<script language="VBScript">
+  Option Explicit
+  Dim objFS					' File関数呼び出し用Object
+  Dim objXls				'Excel関数呼び出し用Object
+  Dim idTimer				'マウスカーソル変更用タイマーID
+  Dim currentUserName		'ログインしたユーザー名
+
+	'***************************************************************************
+	' 初期化処理
+	'***************************************************************************
+	Sub Window_onLoad
+		'画面初期化（PC画面の左上に、画面横半分サイズでウィンドウ枠表示）
+		window.resizeTo window.screen.width*0.5, window.screen.height*0.95
+		window.moveTo 0, 0
+
+		'(Excel)ファイル操作用Objectを用意
+		Set objFS  = CreateObject("Scripting.FileSystemObject")
+		Set objXls = CreateObject("Excel.Application")
+		objXls.DisplayAlerts = False
+
+		'カレントパスを取得し、Excelファイルをオープン
+		objXls.DefaultFilePath = objFS.GetAbsolutePathname(".")
+
+		'初期画面表示
+		Login_Panel
+	End Sub
+
+	'***************************************************************************
+	' 終了処理
+	'***************************************************************************
+	Sub Window_onBeforeUnload
+		'お片付け処理
+		objXls.DisplayAlerts = True
+		objXls.Quit
+		Set objXls = Nothing
+		Set objFS  = Nothing
+	End Sub
+
+	'***************************************************************************
+	' ログイン画面
+	'***************************************************************************
+	Sub Login_Panel
+	  Dim strHTML
+		strHTML = "<table bgcolor='orange'><tr><td>ログイン画面</td></tr></table><p><p>"
+		strHTML = strHTML & "<table>"
+		strHTML = strHTML & "<tr><td>USERID:  </td><td><input type='text' name='login_uid'></td></tr>"
+		strHTML = strHTML & "<tr><td>PASSWORD:</td><td><input type='password' name='login_pwd'></td></tr>"
+		strHTML = strHTML & "<tr><td>　</td><td>　</td></tr>"
+		strHTML = strHTML & "<tr><td align='right'><input type='button' value='ログイン'  onclick='Login_Login'></td>"
+		strHTML = strHTML & "<td align='right'><input type='button' value='終了' onclick='Login_Cancel'></td></tr>"
+		strHTML = strHTML & "</table>"
+		main.innerHTML = strHTML
+	End Sub
+
+	Sub Login_Login
+		document.body.style.cursor = "wait"		'処理中はカーソルを無効化
+		idTimer = window.setTimeout("Login_RealLogin", 1000, "VBScript")
+	End Sub
+
+	Sub Login_RealLogin
+	  Dim objWB					'ExcelBook(File) Object
+	  Dim objWS					'ExcelSheet      Object
+	  Dim loginOK
+	  Dim row, maxrow
+		window.clearTimeout(idTimer)
+
+		Set objWB = objXls.Workbooks.Open(objXls.DefaultFilePath & "\Approvals.xlsx")
+		Set objWS = objWB.WorkSheets("UserMaster")
+		loginOK = False
+		maxrow = objWS.UsedRange.Rows.Count
+		row = 2
+		Do until row > maxrow
+			If  objWS.Cells(row,1).value = login_uid.value _
+			And objWS.Cells(row,3).value = login_pwd.value Then
+				currentUserName = objWS.Cells(row,2).value
+				loginOK = True
+				Exit Do
+			End If
+			row = row + 1
+		Loop
+		objWB.Close
+
+		If loginOK = True Then
+			List_Panel
+		Else
+			MsgBox "正しいUSERID/Passwordを入力してください。", 48, "注意"
+		End If
+
+		document.body.style.cursor = "default"	'処理中はカーソルを無効化
+	End Sub
+
+	Sub Login_Cancel
+		window.close
+	End Sub
+
+	'***************************************************************************
+	' 承認依頼一覧画面
+	'***************************************************************************
+	Sub List_Panel
+		document.body.style.cursor = "wait"		'処理中はカーソルを無効化
+		idTimer = window.setTimeout("List_RealPanel", 1000, "VBScript")
+	End Sub
+
+	Sub List_RealPanel
+	  Dim strHTML
+	  Dim objWB					'ExcelBook(File) Object
+	  Dim objWS					'ExcelSheet      Object
+	  Dim row, maxrow
+	  Dim val1, val2, val3,val4, val5, val6, val7, val8, val9, val10
+		window.clearTimeout(idTimer)
+
+		val1 = "ID"
+		val2 = "件名"
+		val3 = "内容"
+		val4 = "金額"
+		val5 = "起票日"
+		val6 = "起票者"
+		val7 = "状況"
+		val8 = "承認日"
+		val9 = "承認者"
+		val10 = "操作"
+		strHTML = "<table bgcolor='orange'><tr><td>承認依頼一覧画面</td></tr></table><p><p>"
+		strHTML = strHTML & "<p align='right'>ログイン・ユーザー：" & currentUserName & "</p><p><p>"
+		strHTML = strHTML & "<table>"
+		strHTML = strHTML & "<tr><td><input type='button' value='新しい承認依頼を登録'  onclick='List_New'></td>"
+		strHTML = strHTML & "<td><input type='button' name='BTN_CLOSE' value='終了' onclick='List_Cancel'></td></tr>"
+		strHTML = strHTML & "</table><p><p>"
+
+		strHTML = strHTML & "承認依頼一覧<table border='1'>"
+		strHTML = strHTML & "<tr  bgcolor='aliceblue'><td>" & val1 & "</td><td>" & val2 & "</td><td>" & val3 & "</td>"
+		strHTML = strHTML & "<td>" & val4 & "</td><td>" & val5 & "</td><td>" & val6 & "</td>"
+		strHTML = strHTML & "<td>" & val7 & "</td><td>" & val8 & "</td><td>" & val9 & "</td><td>" & val10 & "</td></tr>"
+
+		Set objWB = objXls.Workbooks.Open(objXls.DefaultFilePath & "\Approvals.xlsx")
+		Set objWS = objWB.WorkSheets("Approvals")
+		maxrow = objWS.UsedRange.Rows.Count
+		row = 2
+		Do until row > maxrow
+			If  objWS.Cells(row,1).value = "" Then
+				val1 = "　"
+			Else
+				val1 = objWS.Cells(row,1).value
+			End If
+			If  objWS.Cells(row,2).value = "" Then
+				val2 = "　"
+			Else
+				val2 = objWS.Cells(row,2).value
+			End If
+			If  objWS.Cells(row,3).value = "" Then
+				val3 = "　"
+			Else
+				val3 = objWS.Cells(row,3).value
+			End If
+			If  objWS.Cells(row,4).value = "" Then
+				val4 = "　"
+			Else
+				val4 = objWS.Cells(row,4).value
+			End If
+			If  objWS.Cells(row,5).value = "" Then
+				val5 = "　"
+			Else
+				val5 = objWS.Cells(row,5).value
+			End If
+			If  objWS.Cells(row,6).value = "" Then
+				val6 = "　"
+			Else
+				val6 = objWS.Cells(row,6).value
+			End If
+			If  objWS.Cells(row,7).value = "" Then
+				val7 = "　"
+			Else
+				val7 = objWS.Cells(row,7).value
+			End If
+			If  objWS.Cells(row,8).value = "" Then
+				val8 = "　"
+			Else
+				val8 = objWS.Cells(row,8).value
+			End If
+			If  objWS.Cells(row,9).value = "" Then
+				val9 = "　"
+			Else
+				val9 = objWS.Cells(row,9).value
+			End If
+			If val8 = currentUserName And val9 = "　" Then
+				val10 = "<input type='button' name='BTN_APPROVE' value='承認' onclick='List_ActionBtn(" & val1 & ")'>"
+			Else
+				val10 = "　"
+			End If
+			strHTML = strHTML & "<tr><td value=1>" & val1 & "</td><td value=2>" & val2 & "</td><td value=3>" & val3 & "</td>"
+			strHTML = strHTML & "<td value=4>" & val4 & "</td><td value=5>" & val5 & "</td><td value=6>" & val6 & "</td>"
+			strHTML = strHTML & "<td value=7>" & val7 & "</td><td value=8>" & val9 & "</td><td value=9>" & val8 & "</td><td>" & val10 & "</td></tr>"
+			row = row + 1
+		Loop
+		objWB.Close
+		strHTML = strHTML & "</table><p><p>"
+		if row = 2 Then
+			strHTML = strHTML & "データがありません。<p>"
+		End If
+
+		main.innerHTML = strHTML
+		document.body.style.cursor = "default"	'処理中はカーソルを無効化
+	End Sub
+
+	Sub List_New
+	  Dim strHTML
+		strHTML = "<table bgcolor='orange'><tr><td>承認依頼新規起票画面</td></tr></table><p><p>"
+		strHTML = strHTML & "<table>"
+		strHTML = strHTML & "<tr><td>件名:</td><td><input type='text' name='AddNew_title'></td></tr>"
+		strHTML = strHTML & "<tr><td>内容:</td><td><input type='text' name='AddNew_detail'></td></tr>"
+		strHTML = strHTML & "<tr><td>金額:</td><td><input type='text' name='AddNew_amount'></td></tr>"
+		strHTML = strHTML & "<tr><td>起票日:</td><td><input type='text' name='AddNew_creatordate' value='" & FormatDateTime(Now, 2) & "' disabled='true'></td></tr>"
+		strHTML = strHTML & "<tr><td>起票者:</td><td><input type='text' name='AddNew_creator' value='" & currentUserName &  "' disabled='true'></td></tr>"
+		strHTML = strHTML & "<tr><td>承認者:</td><td>" & GetUserComboStr("AddNew_approver") & "</td></tr>"
+		strHTML = strHTML & "<tr><td>　</td><td>　</td></tr>"
+		strHTML = strHTML & "<tr><td align='right'><input type='button' value='起票'  onclick='List_AddNew'></td>"
+		strHTML = strHTML & "<td align='right'><input type='button' value='一覧に戻る' onclick='List_Panel'></td></tr>"
+		strHTML = strHTML & "</table>"
+		main.innerHTML = strHTML
+	End Sub
+
+	Function GetUserComboStr( nameStr )
+	  Dim objWB					'ExcelBook(File) Object
+	  Dim objWS					'ExcelSheet      Object
+	  Dim row, maxrow
+
+		GetUserComboStr = "<select name='" & nameStr & "'>"
+		Set objWB = objXls.Workbooks.Open(objXls.DefaultFilePath & "\Approvals.xlsx")
+		Set objWS = objWB.WorkSheets("UserMaster")
+		maxrow = objWS.UsedRange.Rows.Count
+		row = 2
+		Do until row > maxrow
+			GetUserComboStr = GetUserComboStr & "<option>" & objWS.Cells(row,2).value & "</option>"
+			row = row + 1
+		Loop
+		objWB.Close
+		GetUserComboStr = GetUserComboStr & "</select>"
+	End Function
+
+	Function GetSelectedUserComboStr( nameStr )
+	  Dim i
+		GetSelectedUserComboStr = ""
+		For i=0 To nameStr.options.length
+			If nameStr.options(i).selected = True Then
+				GetSelectedUserComboStr = nameStr.options(i).Text
+				Exit For
+			End If
+		Next
+	End Function
+
+	Sub List_AddNew
+		document.body.style.cursor = "wait"		'処理中はカーソルを無効化
+		idTimer = window.setTimeout("List_RealAddNew", 1000, "VBScript")
+	End Sub
+
+	Sub List_RealAddNew
+	  Dim objWB					'ExcelBook(File) Object
+	  Dim objWS					'ExcelSheet      Object
+	  Dim row
+		window.clearTimeout(idTimer)
+
+		Set objWB = objXls.Workbooks.Open(objXls.DefaultFilePath & "\Approvals.xlsx")
+		Set objWS = objWB.WorkSheets("Approvals")
+		row = objWS.UsedRange.Rows.Count + 1
+		objWS.Cells(row,1).value = objWS.UsedRange.Rows.Count	 			'ID
+		objWS.Cells(row,2).value = AddNew_title.value						'件名
+		objWS.Cells(row,3).value = AddNew_detail.value						'内容
+		objWS.Cells(row,4).value = AddNew_amount.value						'金額
+		objWS.Cells(row,5).value = AddNew_creatordate.value					'起票日
+		objWS.Cells(row,6).value = AddNew_creator.value						'起票者
+		objWS.Cells(row,7).value = "承認待ち"								'状況
+		objWS.Cells(row,8).value = GetSelectedUserComboStr(AddNew_approver)	'起票者
+		objWB.Save
+		objWB.Close
+
+		document.body.style.cursor = "default"	'処理中はカーソルを無効化
+
+		'一覧再表示
+		List_Panel
+	End Sub
+
+	Sub List_ActionBtn(id)
+	  Dim objWB					'ExcelBook(File) Object
+	  Dim objWS					'ExcelSheet      Object
+	  Dim row, maxrow
+
+		If MsgBox("ID：" & id & " の承認依頼を承認しますか?", 4+32, "確認") = 6 Then
+			Set objWB = objXls.Workbooks.Open(objXls.DefaultFilePath & "\Approvals.xlsx")
+			Set objWS = objWB.WorkSheets("Approvals")
+			maxrow = objWS.UsedRange.Rows.Count
+			row = 2
+			Do until row > maxrow
+				If objWS.Cells(row,1).value = id Then
+					objWS.Cells(row,7).value = "承認済み"
+					objWS.Cells(row,9).value = FormatDateTime(Now, 2)
+					Exit Do
+				End If
+				row = row + 1
+			Loop
+			objWB.Save
+			objWB.Close
+		End If
+
+		'一覧再表示
+		List_Panel
+	End Sub
+
+	Sub List_Cancel
+		window.close
+	End Sub
+
+</script>
+
+
+<!------------------------------------------------------------------------------------------------->
+<!-* ここに画面定義を記述                                                                        -->
+<!------------------------------------------------------------------------------------------------->
+<head>
+	<HTA:APPLICATION APPLICATIONNAME="Approvals" SINGLEINSTANCE="Yes" NAVIGABLE="Yes">
+	</HTA>
+
+	<title>サンプル承認システム</title>
+</head>
+
+<body>
+	<div id='main'></div>
+</body>
